@@ -1,36 +1,22 @@
-const fs = require('fs');
 const TelegramBot = require('node-telegram-bot-api');
-const sqlite3 = require('sqlite3').verbose();
 const express = require('express');
+const bodyParser = require('body-parser');
+const sqlite3 = require('sqlite3').verbose();
+const fs = require('fs');
 
 const TOKEN = '7545031629:AAEVK_xtPKW35ZK7b-wrbdwwnV-1Fwred1A';
-const WEBHOOK_URL = 'https://nis-12.onrender.com/bot'  // webhook URL manzilingiz
+const URL = 'https://nis-12.onrender.com';  // Sizning public URL
 
-// Telegram botni polling emas, webhook rejimida ishga tushiramiz
-const bot = new TelegramBot(TOKEN);
-bot.setWebHook(WEBHOOK_URL + '/' + TOKEN);
+// Botni webhook rejimida ishga tushiramiz
+const bot = new TelegramBot(TOKEN, { webHook: true });
+bot.setWebHook(`${URL}/bot${TOKEN}`);
 
-// Express server yaratamiz
 const app = express();
-
-// Telegram webhook uchun expressga body parser qo'shamiz
-app.use(express.json());
-
-// Telegram webhook endpoint (telegramdan kelgan update'larni qabul qiladi)
-app.post('/bot/' + TOKEN, (req, res) => {
-  bot.processUpdate(req.body);
-  res.sendStatus(200);
-});
-
-// Oddiy GET endpoint - bot ishlayotganini tekshirish uchun
-app.get('/', (req, res) => {
-  res.send('Telegram bot ishga tushdi.');
-});
-
+app.use(bodyParser.json());
 
 const db = new sqlite3.Database('ombor.db');
 
-const admins = [1120730495];  // Adminlar chat ID lar ro'yxati
+const admins = [1120730495];  // Adminlar IDlari
 
 // Log yozish funksiyasi
 function logWrite(text) {
