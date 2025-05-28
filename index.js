@@ -409,13 +409,18 @@ bot.on('callback_query', (callbackQuery) => {
 
 const express = require('express');
 const app = express();
+app.use(bodyParser.json());
 
-app.get('/', (req, res) => {
-  res.send('Telegram bot ishga tushdi.');
+app.post(`/bot${TOKEN}`, (req, res) => {
+  bot.processUpdate(req.body);
+  res.sendStatus(200);
 });
 
-const PORT = process.env.PORT || 3000;
-app.listen(PORT, () => {
-  console.log(`Server port ${PORT} da ishga tushdi`);
+app.get("/", (req, res) => {
+  res.send("Bot ishlamoqda (webhook orqali)");
+});
+
+app.listen(process.env.PORT || 3000, () => {
+  console.log('Server ishga tushdi');
 });
 
