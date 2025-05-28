@@ -1,4 +1,4 @@
-// const fs = require('fs');
+// const fs = require('fs'); // agar hozircha kerak bo'lmasa
 const TelegramBot = require('node-telegram-bot-api');
 const sqlite3 = require('sqlite3').verbose();
 
