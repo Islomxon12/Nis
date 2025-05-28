@@ -1,9 +1,12 @@
-const fs = require('fs');
 const TelegramBot = require('node-telegram-bot-api');
-const sqlite3 = require('sqlite3').verbose();
+const express = require('express');
+const bodyParser = require('body-parser');
 
 const TOKEN = '7545031629:AAEVK_xtPKW35ZK7b-wrbdwwnV-1Fwred1A';
-const bot = new TelegramBot(TOKEN, { polling: true });
+const URL = 'https://nis-12.onrender.com';
+
+const bot = new TelegramBot(TOKEN, { webHook: { port: process.env.PORT || 3000 } });
+bot.setWebHook(`${URL}/bot${TOKEN}`);
 
 const db = new sqlite3.Database('ombor.db');
 
