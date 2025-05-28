@@ -291,24 +291,38 @@ bot.on('message', (msg) => {
   }
 
   // Statistika
-  if (text === "📊 Statistika") {
-    bot.sendSticker(chatId, stickers.statistik);
-    // Umumiy kirim va chiqimni hisoblash
-    db.get(`SELECT
-      SUM(CASE WHEN turi = 'kirim' THEN miqdor ELSE 0 END) AS jami_kirim,
-      SUM(CASE WHEN turi = 'chiqim' THEN miqdor ELSE 0 END) AS jami_chiqim
-      FROM harakatlar`, (err, row) => {
-      if (err) {
-        bot.sendMessage(chatId, "Xatolik yuz berdi.");
-        return;
-      }
-      const jamiKirim = row.jami_kirim || 0;
-      const jamiChiqim = row.jami_chiqim || 0;
-      const javob = `📈 Statistika:\n\nUmumiy kirim: ${jamiKirim} dona\nUmumiy chiqim: ${jamiChiqim} dona`;
-      bot.sendMessage(chatId, javob, getMainMenu(isAdmin));
+if (text === "📊 Statistika") {
+  bot.sendSticker(chatId, stickers.statistik);
+  db.all(`
+    SELECT m.nom,
+      SUM(CASE WHEN h.turi = 'kirim' THEN h.miqdor ELSE 0 END) AS kirim,
+      SUM(CASE WHEN h.turi = 'chiqim' THEN h.miqdor ELSE 0 END) AS chiqim
+    FROM mahsulotlar m
+    LEFT JOIN harakatlar h ON m.id = h.mahsulot_id
+    GROUP BY m.id
+    ORDER BY m.nom
+  `, (err, rows) => {
+    if (err) {
+      bot.sendMessage(chatId, "Xatolik yuz berdi.");
+      return;
+    }
+    if (rows.length === 0) {
+      bot.sendMessage(chatId, "Hozircha hech qanday harakat mavjud emas.", getMainMenu(isAdmin));
+      return;
+    }
+
+    let javob = "📊 Har bir mahsulot bo‘yicha statistika:\n\n";
+    rows.forEach(r => {
+      const kirim = r.kirim || 0;
+      const chiqim = r.chiqim || 0;
+      javob += `🧃 ${r.nom}:\n  ➕ Kirim: ${kirim} dona\n  ➖ Chiqim: ${chiqim} dona\n\n`;
     });
-    return;
-  }
+
+    bot.sendMessage(chatId, javob, getMainMenu(isAdmin));
+  });
+  return;
+}
+
 
   // Noma'lum buyruq uchun menyuni ko'rsatish
   if (!text.startsWith('/')) {
