@@ -1,12 +1,32 @@
+const fs = require('fs');
 const TelegramBot = require('node-telegram-bot-api');
+const sqlite3 = require('sqlite3').verbose();
 const express = require('express');
-const bodyParser = require('body-parser');
 
 const TOKEN = '7545031629:AAEVK_xtPKW35ZK7b-wrbdwwnV-1Fwred1A';
-const URL = 'https://nis-12.onrender.com';
+const WEBHOOK_URL = 'https://nis-12.onrender.com/bot'  // webhook URL manzilingiz
 
-const bot = new TelegramBot(TOKEN, { webHook: { port: process.env.PORT || 3000 } });
-bot.setWebHook(`${URL}/bot${TOKEN}`);
+// Telegram botni polling emas, webhook rejimida ishga tushiramiz
+const bot = new TelegramBot(TOKEN);
+bot.setWebHook(WEBHOOK_URL + '/' + TOKEN);
+
+// Express server yaratamiz
+const app = express();
+
+// Telegram webhook uchun expressga body parser qo'shamiz
+app.use(express.json());
+
+// Telegram webhook endpoint (telegramdan kelgan update'larni qabul qiladi)
+app.post('/bot/' + TOKEN, (req, res) => {
+  bot.processUpdate(req.body);
+  res.sendStatus(200);
+});
+
+// Oddiy GET endpoint - bot ishlayotganini tekshirish uchun
+app.get('/', (req, res) => {
+  res.send('Telegram bot ishga tushdi.');
+});
+
 
 const db = new sqlite3.Database('ombor.db');
 
@@ -411,9 +431,9 @@ const express = require('express');
 const app = express();
 app.use(bodyParser.json());
 
-app.post(`/bot${TOKEN}`, (req, res) => {
-  bot.processUpdate(req.body);
-  res.sendStatus(200);
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => {
+  console.log(`Server port ${PORT} da ishga tushdi`);
 });
 
 app.get("/", (req, res) => {
