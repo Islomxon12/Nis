@@ -292,37 +292,46 @@ bot.on('message', (msg) => {
 
  if (text === "📊 Statistika") {
   bot.sendSticker(chatId, stickers.statistik);
-
-  db.all(`
-    SELECT 
-      m.nom,
-      SUM(CASE WHEN h.turi = 'kirim' THEN h.miqdor ELSE 0 END) AS kirim,
-      SUM(CASE WHEN h.turi = 'chiqim' THEN h.miqdor ELSE 0 END) AS chiqim
+  db.all(`SELECT 
+    m.nom AS nom,
+    SUM(CASE WHEN h.turi = 'kirim' THEN h.miqdor ELSE 0 END) AS jami_kirim,
+    MAX(CASE WHEN h.turi = 'kirim' THEN h.sana ELSE NULL END) AS oxirgi_kirim,
+    SUM(CASE WHEN h.turi = 'chiqim' THEN h.miqdor ELSE 0 END) AS jami_chiqim,
+    MAX(CASE WHEN h.turi = 'chiqim' THEN h.sana ELSE NULL END) AS oxirgi_chiqim
     FROM mahsulotlar m
     LEFT JOIN harakatlar h ON m.id = h.mahsulot_id
-    GROUP BY m.nom
-  `, (err, rows) => {
+    GROUP BY m.id
+    ORDER BY m.nom`, (err, rows) => {
     if (err) {
       bot.sendMessage(chatId, "Xatolik yuz berdi.");
       return;
     }
 
     if (rows.length === 0) {
-      bot.sendMessage(chatId, "Statistika mavjud emas.");
+      bot.sendMessage(chatId, "Hech qanday mahsulot topilmadi.");
       return;
     }
 
     let javob = "📊 Har bir mahsulot bo‘yicha statistika:\n\n";
+
     rows.forEach(row => {
-      const kirim = row.kirim || 0;
-      const chiqim = row.chiqim || 0;
-      javob += `📌 ${row.nom}:\n  ➕ Kirim: ${kirim} dona\n  ➖ Chiqim: ${chiqim} dona\n\n`;
+      const kirim = row.jami_kirim || 0;
+      const chiqim = row.jami_chiqim || 0;
+      const oxirgiKirim = row.oxirgi_kirim ? new Date(row.oxirgi_kirim).toLocaleString() : "Yo‘q";
+      const oxirgiChiqim = row.oxirgi_chiqim ? new Date(row.oxirgi_chiqim).toLocaleString() : "Yo‘q";
+
+      javob += `📦 *${row.nom}*\n` +
+        `  ▫️ Kirim: ${kirim} dona\n` +
+        `  ▫️ Oxirgi kirim: ${oxirgiKirim}\n` +
+        `  ▫️ Chiqim: ${chiqim} dona\n` +
+        `  ▫️ Oxirgi chiqim: ${oxirgiChiqim}\n\n`;
     });
 
-    bot.sendMessage(chatId, javob, getMainMenu(isAdmin));
+    bot.sendMessage(chatId, javob, { parse_mode: "Markdown", ...getMainMenu(isAdmin) });
   });
   return;
 }
+
 
 
 
