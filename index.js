@@ -403,3 +403,16 @@ bot.on('callback_query', (callbackQuery) => {
 
   bot.answerCallbackQuery(callbackQuery.id);
 });
+
+const express = require('express');
+const app = express();
+
+app.get('/', (req, res) => {
+  res.send('Telegram bot ishga tushdi.');
+});
+
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => {
+  console.log(`Server port ${PORT} da ishga tushdi`);
+});
+
