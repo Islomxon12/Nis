@@ -1,4 +1,4 @@
-# Nisconst fs = require('fs');
+// const fs = require('fs');
 const TelegramBot = require('node-telegram-bot-api');
 const sqlite3 = require('sqlite3').verbose();
 
