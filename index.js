@@ -290,38 +290,40 @@ bot.on('message', (msg) => {
     return;
   }
 
-  // Statistika
-if (text === "📊 Statistika") {
+ if (text === "📊 Statistika") {
   bot.sendSticker(chatId, stickers.statistik);
+
   db.all(`
-    SELECT m.nom,
+    SELECT 
+      m.nom,
       SUM(CASE WHEN h.turi = 'kirim' THEN h.miqdor ELSE 0 END) AS kirim,
       SUM(CASE WHEN h.turi = 'chiqim' THEN h.miqdor ELSE 0 END) AS chiqim
     FROM mahsulotlar m
     LEFT JOIN harakatlar h ON m.id = h.mahsulot_id
-    GROUP BY m.id
-    ORDER BY m.nom
+    GROUP BY m.nom
   `, (err, rows) => {
     if (err) {
       bot.sendMessage(chatId, "Xatolik yuz berdi.");
       return;
     }
+
     if (rows.length === 0) {
-      bot.sendMessage(chatId, "Hozircha hech qanday harakat mavjud emas.", getMainMenu(isAdmin));
+      bot.sendMessage(chatId, "Statistika mavjud emas.");
       return;
     }
 
     let javob = "📊 Har bir mahsulot bo‘yicha statistika:\n\n";
-    rows.forEach(r => {
-      const kirim = r.kirim || 0;
-      const chiqim = r.chiqim || 0;
-      javob += `🧃 ${r.nom}:\n  ➕ Kirim: ${kirim} dona\n  ➖ Chiqim: ${chiqim} dona\n\n`;
+    rows.forEach(row => {
+      const kirim = row.kirim || 0;
+      const chiqim = row.chiqim || 0;
+      javob += `📌 ${row.nom}:\n  ➕ Kirim: ${kirim} dona\n  ➖ Chiqim: ${chiqim} dona\n\n`;
     });
 
     bot.sendMessage(chatId, javob, getMainMenu(isAdmin));
   });
   return;
 }
+
 
 
   // Noma'lum buyruq uchun menyuni ko'rsatish
