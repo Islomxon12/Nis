@@ -1,4 +1,4 @@
-// const fs = require('fs');
+const fs = require('fs');
 const TelegramBot = require('node-telegram-bot-api');
 const sqlite3 = require('sqlite3').verbose();
 
@@ -38,7 +38,7 @@ db.serialize(() => {
 // Asosiy menyu tugmalari (emoji bilan)
 function getMainMenu(isAdmin) {
   const buttons = [
-    ["📋 Mahsulotlar"],  // Yangi qo'shilgan tugma
+    ["📋 Mahsulotlar"],
     ["📦 Qoldiq"],
     ["📊 Statistika"]
   ];
@@ -96,7 +96,7 @@ function mahsulotSoniniYangilash(chatId, nom, soni, turi, isAdmin) {
     }
     if (!row) {
       if (turi === 'chiqim') {
-        bot.sendMessage(chatId, "Mahsulot topilmadi yoki yetarli zaxira yo'q.");
+        bot.sendMessage(chatId, "Mahsulot topilmadi yoki yetarli zaxira yo'q.", getMainMenu(isAdmin));
         session[chatId] = {};
         return;
       }
@@ -120,7 +120,7 @@ function mahsulotSoniniYangilash(chatId, nom, soni, turi, isAdmin) {
       const yangiSoni = row.soni + soni;
       db.run("UPDATE mahsulotlar SET soni = ? WHERE id = ?", [yangiSoni, row.id], (err) => {
         if (err) {
-          bot.sendMessage(chatId, "Yangilashda xatolik yuz berdi.");
+          bot.sendMessage(chatId, "Yangilashda xatolik yuz berdi.", getMainMenu(isAdmin));
           session[chatId] = {};
           return;
         }
@@ -130,13 +130,14 @@ function mahsulotSoniniYangilash(chatId, nom, soni, turi, isAdmin) {
       });
     } else if (turi === 'chiqim') {
       if (row.soni < soni) {
-        bot.sendMessage(chatId, `Xatolik: mavjud qoldiq ${row.soni} dona, siz ${soni} dona chiqarolmaysiz.`);
+        bot.sendMessage(chatId, `Xatolik: mavjud qoldiq ${row.soni} dona, siz ${soni} dona chiqarolmaysiz.`, getMainMenu(isAdmin));
+        session[chatId] = {};
         return;
       }
       const yangiSoni = row.soni - soni;
       db.run("UPDATE mahsulotlar SET soni = ? WHERE id = ?", [yangiSoni, row.id], (err) => {
         if (err) {
-          bot.sendMessage(chatId, "Yangilashda xatolik yuz berdi.");
+          bot.sendMessage(chatId, "Yangilashda xatolik yuz berdi.", getMainMenu(isAdmin));
           session[chatId] = {};
           return;
         }
@@ -173,7 +174,7 @@ bot.on('message', (msg) => {
   // Mahsulot qo'shish
   if (text === "➕ Mahsulot qo'shish") {
     bot.sendSticker(chatId, stickers.add);
-    session[chatId].qadam = 'add_nom';
+    session[chatId] = { qadam: 'add_nom' };
     bot.sendMessage(chatId, "Qo'shmoqchi bo'lgan mahsulot nomini kiriting:");
     return;
   }
@@ -227,15 +228,6 @@ bot.on('message', (msg) => {
     });
     return;
   }
-  if (session[chatId].qadam === 'kirim_soni') {
-    const soni = parseInt(text.trim());
-    if (isNaN(soni) || soni <= 0) {
-      bot.sendMessage(chatId, "Iltimos, 1 yoki undan katta son kiriting.");
-      return;
-    }
-    mahsulotSoniniYangilash(chatId, session[chatId].nom, soni, 'kirim', isAdmin);
-    return;
-  }
 
   // Chiqim
   if (text === "📤 Chiqim") {
@@ -254,6 +246,19 @@ bot.on('message', (msg) => {
     });
     return;
   }
+
+  // Kirim soni kiritish
+  if (session[chatId].qadam === 'kirim_soni') {
+    const soni = parseInt(text.trim());
+    if (isNaN(soni) || soni <= 0) {
+      bot.sendMessage(chatId, "Iltimos, 1 yoki undan katta son kiriting.");
+      return;
+    }
+    mahsulotSoniniYangilash(chatId, session[chatId].nom, soni, 'kirim', isAdmin);
+    return;
+  }
+
+  // Chiqim soni kiritish
   if (session[chatId].qadam === 'chiqim_soni') {
     const soni = parseInt(text.trim());
     if (isNaN(soni) || soni <= 0) {
@@ -264,7 +269,7 @@ bot.on('message', (msg) => {
     return;
   }
 
-  // Qoldiq
+  // Qoldiqni ko‘rsatish
   if (text === "📦 Qoldiq") {
     bot.sendSticker(chatId, stickers.qoldiq);
     db.all("SELECT nom, soni FROM mahsulotlar", (err, rows) => {
@@ -276,9 +281,9 @@ bot.on('message', (msg) => {
         bot.sendMessage(chatId, "Hozircha mahsulotlar mavjud emas.", getMainMenu(isAdmin));
         return;
       }
-      let javob = "📦 Ombordagi mahsulotlar qoldiqlari:\n\n";
+      let javob = "Ombordagi mahsulotlar va qoldiqlari:\n\n";
       rows.forEach(r => {
-        javob += `• ${r.nom}: ${r.soni} dona\n`;
+        javob += `${r.nom}: ${r.soni} dona\n`;
       });
       bot.sendMessage(chatId, javob, getMainMenu(isAdmin));
     });
@@ -288,54 +293,55 @@ bot.on('message', (msg) => {
   // Statistika
   if (text === "📊 Statistika") {
     bot.sendSticker(chatId, stickers.statistik);
-    // Statistika chiqarish kodi (ixtiyoriy)
-    db.get("SELECT SUM(CASE WHEN turi='kirim' THEN miqdor ELSE 0 END) as jamiKirim, SUM(CASE WHEN turi='chiqim' THEN miqdor ELSE 0 END) as jamiChiqim FROM harakatlar", (err, row) => {
+    // Umumiy kirim va chiqimni hisoblash
+    db.get(`SELECT
+      SUM(CASE WHEN turi = 'kirim' THEN miqdor ELSE 0 END) AS jami_kirim,
+      SUM(CASE WHEN turi = 'chiqim' THEN miqdor ELSE 0 END) AS jami_chiqim
+      FROM harakatlar`, (err, row) => {
       if (err) {
         bot.sendMessage(chatId, "Xatolik yuz berdi.");
         return;
       }
-      const jamiKirim = row.jamiKirim || 0;
-      const jamiChiqim = row.jamiChiqim || 0;
-      const qolgan = jamiKirim - jamiChiqim;
-      let javob = `📊 Umumiy statistika:\n\n`;
-      javob += `Kirim: ${jamiKirim} dona\n`;
-      javob += `Chiqim: ${jamiChiqim} dona\n`;
-      javob += `Qoldiq (jami): ${qolgan} dona\n`;
+      const jamiKirim = row.jami_kirim || 0;
+      const jamiChiqim = row.jami_chiqim || 0;
+      const javob = `📈 Statistika:\n\nUmumiy kirim: ${jamiKirim} dona\nUmumiy chiqim: ${jamiChiqim} dona`;
       bot.sendMessage(chatId, javob, getMainMenu(isAdmin));
     });
     return;
   }
 
-  // Default javob
-  bot.sendMessage(chatId, "Iltimos, menyudan tugma tanlang.", getMainMenu(isAdmin));
+  // Noma'lum buyruq uchun menyuni ko'rsatish
+  if (!text.startsWith('/')) {
+    bot.sendMessage(chatId, "Iltimos, menyudan biror tugmani tanlang yoki /menu yozing.", getMainMenu(isAdmin));
+  }
 });
 
-// Callback query bilan ishlash
+// Callback query ishlash (inline tugmalar)
 bot.on('callback_query', (callbackQuery) => {
   const chatId = callbackQuery.message.chat.id;
-  const isAdmin = admins.includes(chatId);
   const data = callbackQuery.data;
+  const isAdmin = admins.includes(chatId);
 
-  // Mahsulot o'chirish (inline tugma bosilganda)
+  if (!session[chatId]) session[chatId] = {};
+
+  // Mahsulotni o'chirish
   if (data.startsWith('del_')) {
+    if (!isAdmin) {
+      bot.answerCallbackQuery(callbackQuery.id, { text: "Bu amal uchun ruxsat yo'q." });
+      return;
+    }
     const nom = data.slice(4);
     db.get("SELECT id FROM mahsulotlar WHERE nom = ?", [nom], (err, row) => {
-      if (err) {
-        bot.answerCallbackQuery(callbackQuery.id, { text: "O'chirishda xatolik yuz berdi." });
-        return;
-      }
-      if (!row) {
-        bot.answerCallbackQuery(callbackQuery.id, { text: "Mahsulot topilmadi." });
+      if (err || !row) {
+        bot.answerCallbackQuery(callbackQuery.id, { text: "Mahsulot topilmadi yoki xatolik yuz berdi." });
         return;
       }
       const mahsulotId = row.id;
-      // Mahsulotga tegishli harakatlarni o'chirish
       db.run("DELETE FROM harakatlar WHERE mahsulot_id = ?", [mahsulotId], (err) => {
         if (err) {
           bot.answerCallbackQuery(callbackQuery.id, { text: "Harakatlarni o'chirishda xatolik yuz berdi." });
           return;
         }
-        // Mahsulotni o'chirish
         db.run("DELETE FROM mahsulotlar WHERE id = ?", [mahsulotId], function(err) {
           if (err) {
             bot.answerCallbackQuery(callbackQuery.id, { text: "Mahsulotni o'chirishda xatolik yuz berdi." });
@@ -345,16 +351,17 @@ bot.on('callback_query', (callbackQuery) => {
           bot.editMessageText(`${nom} mahsuloti o'chirildi.`, {
             chat_id: chatId,
             message_id: callbackQuery.message.message_id,
-            reply_markup: { remove_keyboard: true }
+            reply_markup: { inline_keyboard: [] }
           });
-          logWrite(`${nom} mahsuloti va unga tegishli harakatlar o'chirildi.`);
+          logWrite(`${nom} mahsuloti o'chirildi va unga tegishli harakatlar o'chirildi.`);
+          session[chatId] = {};
         });
       });
     });
     return;
   }
 
-  // Kirim tanlash
+  // Kirim mahsulot tanlandi
   if (session[chatId].qadam === 'kirim_tanlash') {
     session[chatId].nom = data;
     session[chatId].qadam = 'kirim_soni';
@@ -363,7 +370,7 @@ bot.on('callback_query', (callbackQuery) => {
     return;
   }
 
-  // Chiqim tanlash
+  // Chiqim mahsulot tanlandi
   if (session[chatId].qadam === 'chiqim_tanlash') {
     session[chatId].nom = data;
     session[chatId].qadam = 'chiqim_soni';
