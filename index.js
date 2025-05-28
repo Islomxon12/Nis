@@ -290,7 +290,7 @@ bot.on('message', (msg) => {
     return;
   }
 
- if (text === "📊 Statistika") {
+if (text === "📊 Statistika") {
   bot.sendSticker(chatId, stickers.statistik);
   db.all(`SELECT 
     m.nom AS nom,
@@ -331,9 +331,6 @@ bot.on('message', (msg) => {
   });
   return;
 }
-
-
-
 
   // Noma'lum buyruq uchun menyuni ko'rsatish
   if (!text.startsWith('/')) {
